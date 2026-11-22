@@ -2,7 +2,7 @@ import { createServer, type IncomingMessage, type ServerResponse } from 'node:ht
 import { readFile } from 'node:fs/promises';
 import { extname, join, normalize, resolve } from 'node:path';
 import { WebSocketServer, type WebSocket } from 'ws';
-import { cleanName, isCard, ROOM_CODE_PATTERN, type ClientMessage, type ServerMessage } from '../shared/protocol.ts';
+import { cleanDeck, cleanName, ROOM_CODE_PATTERN, type ClientMessage, type ServerMessage } from '../shared/protocol.ts';
 import { Lobby, type Connection, type Player, type Room } from './rooms.ts';
 
 const DEV = process.argv.includes('--dev');
@@ -129,6 +129,10 @@ function attach(ws: WebSocket & { alive?: boolean }, code: string) {
         return conn.send({ t: 'error', reason: 'bad-join' });
       }
       room = lobby.get(code, Date.now());
+      const deck = msg.deck === undefined ? null : cleanDeck(msg.deck);
+      if (deck) {
+        room.setDeck(deck);
+      }
       player = room.join(msg.secret, name, conn);
       return;
     }
@@ -140,7 +144,7 @@ function attach(ws: WebSocket & { alive?: boolean }, code: string) {
         break;
       }
       case 'play':
-        if (isCard(msg.card)) room.play(player, msg.card);
+        if (typeof msg.card === 'string') room.play(player, msg.card);
         break;
       case 'unplay':
         room.unplay(player);

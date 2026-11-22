@@ -11,6 +11,8 @@ test('average rounds to two places', () => {
   assert.equal(averageText([1, 2, 4]), '2.33');
   assert.equal(averageText([4, 4]), '4');
   assert.equal(averageText([]), null);
+  assert.equal(averageText([100, 33]), '66.5');
+  assert.equal(averageText([1000, 1001]), '1001');
 });
 
 test('mode picks the most played number', () => {
@@ -29,4 +31,5 @@ test('the display right-aligns and dots whole numbers only', () => {
   assert.equal(shown('2.33'), ' 2.33');
   assert.equal(shown('2-8'), ' 2-8');
   assert.equal(shown(null), '----');
+  assert.equal(shown('13-21'), '----');
 });

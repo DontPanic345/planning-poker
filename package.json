@@ -11,7 +11,7 @@
     "build": "vite build",
     "start": "vite build && tsx server/index.ts",
     "typecheck": "tsc --noEmit",
-    "test": "node --import tsx --test server/*.test.ts client/src/*.test.ts"
+    "test": "node --import tsx --test server/*.test.ts shared/*.test.ts client/src/*.test.ts"
   },
   "dependencies": {
     "tsx": "^4.23.15",

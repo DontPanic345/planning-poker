@@ -79,7 +79,8 @@ A box of fireworks on the table beside the coin, shared by the whole room.
 
 ### Cards
 
-- Doubling 1, 2, 4, 8, plus ? and ☕.
+- Doubling 1, 2, 4, 8, plus ? and ☕, by default. A room link can ask for Fibonacci (1, 2, 3, 5, 8, 13, ? and ☕) or a custom list of faces instead; the whole room plays the same deck.
+- Where played cards overlap, the last one played rests on top.
 - Each card shows the owning player's initials/emoji in the top-left corner, and upside-down in the bottom-right corner — visible in both face-up and face-down states, so at a glance you can tell who has and hasn't played, even face-down.
 - Face-up: the number is large and centered.
 - Face-down: a simple repeating pattern, no number.

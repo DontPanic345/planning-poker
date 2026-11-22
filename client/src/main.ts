@@ -1,9 +1,11 @@
 import './style.css';
 import {
   cardNumber,
-  CARDS,
   CLOSE_REPLACED,
   cleanName,
+  DEFAULT_DECK,
+  deckFromQuery,
+  deckQuery,
   graphemes,
   type CardValue,
   type ClientMessage,
@@ -12,6 +14,7 @@ import {
   type ServerMessage,
 } from '../../shared/protocol.ts';
 import { mountCalculator } from './calculator.ts';
+import { pickLanguage, t, useLanguage } from './i18n.ts';
 import { mountSky } from './fireworks.ts';
 import { computeGeometry, handSlots, seatPoint, spotPoint, type Geometry, type Point } from './layout.ts';
 
@@ -19,16 +22,23 @@ const SEAT_COLORS = ['#e85d75', '#f29e4c', '#e9c46a', '#8ac926', '#2ec4b6', '#3a
 const INK: Record<CardValue, string> = {
   '1': '#2a9d8f',
   '2': '#3f9e5a',
+  '3': '#2f7fb8',
   '4': '#7b5cd6',
+  '5': '#c2569b',
   '8': '#d62839',
+  '13': '#d9622b',
   '?': '#5f6b7a',
   '☕': '#8d5a3b',
 };
+const SPARE_INK = ['#2a9d8f', '#3f9e5a', '#2f7fb8', '#7b5cd6', '#c2569b', '#d62839', '#d9622b', '#a07a12', '#1f8a70', '#5f6b7a'];
 const PICKS = ['🐑', '🐄', '🚜', '🥝', '🐕', '🌾', '🦉', '🐝', '🍀', '⛰️', '🌊', '🚀'];
 const MOVE_MS = 650;
 const DEFAULT_SEATS = 10;
 
 const room = location.pathname.split('/')[2] ?? '';
+useLanguage(pickLanguage(new URLSearchParams(location.search).get('lang'), navigator.languages), document);
+/** Sent with the first join only, so a reconnect never undoes someone else's deck. */
+let askedDeck = deckFromQuery(new URLSearchParams(location.search));
 const $ = <T extends HTMLElement>(sel: string) => document.querySelector(sel) as T;
 
 const store = {
@@ -75,7 +85,7 @@ let state: RoomView | null = null;
 let socket: WebSocket | null = null;
 let online = false;
 let retry = 0;
-let g: Geometry = computeGeometry(innerWidth, innerHeight, DEFAULT_SEATS);
+let g: Geometry = computeGeometry(innerWidth, innerHeight, DEFAULT_SEATS, DEFAULT_DECK.length);
 let coinTurns: number | null = null;
 let lastFaceUp: boolean | null = null;
 let lastLaunches: number | null = null;
@@ -86,13 +96,18 @@ function send(msg: ClientMessage) {
   if (socket?.readyState === WebSocket.OPEN) socket.send(JSON.stringify(msg));
 }
 
+function join(joinName: string) {
+  send({ t: 'join', secret, name: joinName, ...(askedDeck ? { deck: askedDeck } : {}) });
+  askedDeck = null;
+}
+
 function connect() {
   const ws = new WebSocket(`${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/ws?room=${room}`);
   socket = ws;
   ws.onopen = () => {
     retry = 0;
     online = true;
-    if (name && (state || !editing)) send({ t: 'join', secret, name });
+    if (name && (state || !editing)) join(name);
     renderStatus();
   };
   ws.onmessage = (ev) => {
@@ -119,6 +134,7 @@ function connect() {
 
 const me = (): PlayerView | undefined => state?.players.find((p) => p.pid === state!.you);
 const seatColor = (seat: number) => SEAT_COLORS[seat % SEAT_COLORS.length];
+const deck = (): readonly CardValue[] => state?.deck ?? DEFAULT_DECK;
 const seatCount = () => Math.max(DEFAULT_SEATS, ...(state?.players.map((p) => p.seat + 1) ?? []));
 
 function translate(p: Point, extra = '') {
@@ -191,7 +207,7 @@ function renderSeats() {
     if (p?.pid === you) {
       el.setAttribute('role', 'button');
       el.tabIndex = 0;
-      el.title = 'Change your initials';
+      el.title = t('changeInitials');
     } else {
       el.removeAttribute('role');
       el.removeAttribute('tabindex');
@@ -246,7 +262,7 @@ function renderCenter() {
   }
   lastFaceUp = faceUp;
   coinEl.querySelector<HTMLElement>('.coin-inner')!.style.transform = `rotateY(${coinTurns * 180}deg)`;
-  const label = faceUp ? 'Turn cards face-down' : 'Turn cards face-up';
+  const label = faceUp ? t('coinDown') : t('coinUp');
   coinEl.title = label;
   coinEl.setAttribute('aria-label', label);
   coinEl.disabled = !state;
@@ -256,7 +272,7 @@ function renderCenter() {
   fireworksEl.style.setProperty('--coin', `${g.coin * 0.85}px`);
   fireworksEl.style.transform = translate(fireworksPoint());
   fireworksEl.classList.toggle('armed', !!state?.armed);
-  const fwLabel = state?.armed ? 'Unload the fireworks' : 'Load the fireworks';
+  const fwLabel = state?.armed ? t('fwUnload') : t('fwLoad');
   fireworksEl.title = fwLabel;
   fireworksEl.setAttribute('aria-label', fwLabel);
   fireworksEl.disabled = !state;
@@ -318,11 +334,17 @@ function pose(el: HTMLElement, p: Pose) {
   el.style.opacity = String(p.opacity ?? 1);
 }
 
+function inkFor(value: CardValue): string {
+  return INK[value] ?? SPARE_INK[Math.max(0, deck().indexOf(value)) % SPARE_INK.length];
+}
+
 function cardSpecs(): CardSpec[] {
   if (!state) return [];
   const specs: CardSpec[] = [];
   const you = me();
   const faceUp = state.faceUp;
+  const played = state.players.filter((p) => p.card).sort((a, b) => a.card!.n - b.card!.n);
+  const tableZ = (p: PlayerView) => 10 + played.indexOf(p);
 
   for (const p of state.players) {
     if (!p.card || p === you) continue;
@@ -335,17 +357,18 @@ function cardSpecs(): CardSpec[] {
       down: !faceUp,
       pose: { ...spotPoint(g, p.seat), h: g.tableCardH, rot: tilt(p.card.n) },
       origin: { ...seat, h: g.tableCardH * 0.45, rot: 0, opacity: 0 },
-      z: 10 + p.seat,
+      z: tableZ(p),
       delay: 0,
-      label: `${p.name}'s card`,
+      label: t('card', { name: p.name }),
     });
   }
 
   if (you) {
-    const inHand = CARDS.filter((c) => c !== you.card?.v);
+    const cards = deck();
+    const inHand = cards.filter((c) => c !== you.card?.v);
     const slots = handSlots(g, inHand.length);
     const hidden = editing ? g.H * 0.6 + g.handCardH : 0;
-    CARDS.forEach((c, i) => {
+    cards.forEach((c, i) => {
       const onTable = you.card?.v === c;
       const slotIndex = inHand.indexOf(c);
       const slot = onTable ? null : slots[slotIndex];
@@ -359,9 +382,9 @@ function cardSpecs(): CardSpec[] {
           ? { x: slot.x, y: slot.y + hidden, h: g.handCardH, rot: slot.rot }
           : { ...spotPoint(g, you.seat), h: g.tableCardH, rot: tilt(you.seat * 13 + i) },
         origin: { x: g.W / 2, y: g.H + g.handCardH, h: g.handCardH, rot: 0 },
-        z: onTable ? 10 + you.seat : 100 + slotIndex,
+        z: onTable ? tableZ(you) : 100 + slotIndex,
         delay: i * 45,
-        label: onTable ? `Take back ${c}` : `Play ${c}`,
+        label: onTable ? t('takeBack', { card: c }) : t('play', { card: c }),
       });
     });
   }
@@ -376,13 +399,13 @@ function dress(el: HTMLElement, spec: CardSpec) {
   el.classList.toggle('table', spec.kind === 'table');
   el.style.setProperty('--owner', seatColor(spec.owner.seat));
   el.style.setProperty('--flip-delay', `${spec.kind === 'hand' ? 0 : spec.owner.seat * 60}ms`);
-  el.setAttribute('aria-label', spec.down ? `${spec.owner.name}'s face-down card` : spec.label);
+  el.setAttribute('aria-label', spec.down ? t('cardDown', { name: spec.owner.name }) : spec.label);
   for (const corner of el.querySelectorAll<HTMLElement>('.corner')) corner.textContent = spec.owner.name;
   if (spec.value !== null) {
     const value = el.querySelector<HTMLElement>('.value')!;
     value.textContent = spec.value;
-    value.dataset.len = String(spec.value.length);
-    el.style.setProperty('--ink', INK[spec.value]);
+    value.dataset.len = String(Math.min(3, graphemes(spec.value).length));
+    el.style.setProperty('--ink', inkFor(spec.value));
   }
 }
 
@@ -453,7 +476,8 @@ function activate(el: HTMLElement) {
   if (key.startsWith('m:') && you && !el.classList.contains('leaving')) {
     const value = key.slice(2) as CardValue;
     if (el.dataset.kind === 'hand') {
-      you.card = { n: (you.card?.n ?? 0) + 1, v: value };
+      const top = Math.max(0, ...state!.players.map((p) => p.card?.n ?? 0));
+      you.card = { n: top + 1, v: value };
       send({ t: 'play', card: value });
     } else {
       you.card = null;
@@ -526,7 +550,7 @@ joinEl.addEventListener('submit', (ev) => {
     me()!.name = clean;
     send({ t: 'rename', name: clean });
   } else {
-    send({ t: 'join', secret, name: clean });
+    join(clean);
   }
   nameInput.blur();
   render();
@@ -552,7 +576,7 @@ let copiedTimer = 0;
 linkEl.querySelector('.link-code')!.textContent = room;
 linkEl.addEventListener('click', async () => {
   try {
-    await navigator.clipboard.writeText(location.href);
+    await navigator.clipboard.writeText(roomLink());
     linkEl.classList.remove('copied');
     void linkEl.offsetWidth;
     linkEl.classList.add('copied');
@@ -614,9 +638,30 @@ function faceUpNumbers(): number[] | null {
 
 // ---------- render ----------
 
+function roomLink() {
+  return `${location.origin}${location.pathname}${deckQuery(deck())}`;
+}
+
+/** Keeps the address bar on the room's deck, so a reload or a copied URL deals the same cards. */
+function syncAddress() {
+  const others = new URLSearchParams(location.search);
+  others.delete('deck');
+  let search = deckQuery(deck());
+  if (others.size && search) {
+    search += `&${others}`;
+  } else if (others.size) {
+    search = `?${others}`;
+  }
+  const want = `${location.pathname}${search}`;
+  if (state && `${location.pathname}${location.search}` !== want) {
+    history.replaceState(null, '', want);
+  }
+}
+
 let rendered = false;
 function render() {
-  g = computeGeometry(innerWidth, innerHeight, seatCount());
+  g = computeGeometry(innerWidth, innerHeight, seatCount(), deck().length);
+  syncAddress();
   renderTable();
   renderSeats();
   renderCenter();

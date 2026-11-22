@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { CLOSE_REPLACED, type RoomView, type ServerMessage } from '../shared/protocol.ts';
+import { CLOSE_REPLACED, DECKS, type RoomView, type ServerMessage } from '../shared/protocol.ts';
 import { DISCONNECT_GRACE_MS, EMPTY_ROOM_TTL_MS, Lobby, Room, type Connection } from './rooms.ts';
 
 function fakeConn() {
@@ -156,4 +156,21 @@ test('arming toggles', () => {
   room.arm();
   room.arm();
   assert.equal(conn.last!.armed, false);
+});
+
+test('a new deck takes back played cards it does not have, and only its cards can be played', () => {
+  const room = new Room('ROOM', 0);
+  const conn = fakeConn();
+  const a = room.join(SECRET_A, 'AA', conn);
+  const b = room.join(SECRET_B, 'BB', fakeConn());
+  room.play(a, '4');
+  room.play(b, '8');
+  room.setDeck([...DECKS.fib]);
+  assert.deepEqual(conn.last!.deck, DECKS.fib);
+  assert.equal(a.card, null);
+  assert.equal(b.card?.v, '8');
+  room.play(a, '4');
+  assert.equal(a.card, null);
+  room.play(a, '13');
+  assert.equal(conn.last!.players.find((p) => p.pid === a.pid)!.card?.v, '13');
 });

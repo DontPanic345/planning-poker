@@ -2,6 +2,7 @@ import { randomBytes, randomInt } from 'node:crypto';
 import {
   cardNumber,
   CLOSE_REPLACED,
+  DEFAULT_DECK,
   ROOM_CODE_ALPHABET,
   type CardValue,
   type PlayerView,
@@ -30,6 +31,7 @@ export interface Player {
 export class Room {
   readonly code: string;
   faceUp = false;
+  deck: CardValue[] = [...DEFAULT_DECK];
   armed = false;
   launches = 0;
   emptySince: number;
@@ -80,7 +82,7 @@ export class Room {
   }
 
   play(player: Player, card: CardValue) {
-    if (player.card?.v === card) return;
+    if (player.card?.v === card || !this.deck.includes(card)) return;
     player.card = { n: ++this.playCount, v: card };
     this.broadcast();
   }
@@ -98,6 +100,20 @@ export class Room {
 
   clear() {
     for (const p of this.players.values()) p.card = null;
+    this.broadcast();
+  }
+
+  /** Swaps the deck, taking back any played card the new deck doesn't have. */
+  setDeck(deck: CardValue[]) {
+    if (deck.length === this.deck.length && deck.every((c, i) => c === this.deck[i])) {
+      return;
+    }
+    this.deck = deck;
+    for (const p of this.players.values()) {
+      if (p.card && !deck.includes(p.card.v)) {
+        p.card = null;
+      }
+    }
     this.broadcast();
   }
 
@@ -128,7 +144,7 @@ export class Room {
       connected: p.conn !== null,
       card: p.card && { n: p.card.n, v: this.faceUp || p === viewer ? p.card.v : null },
     }));
-    return { you: viewer.pid, faceUp: this.faceUp, armed: this.armed, launches: this.launches, players };
+    return { you: viewer.pid, faceUp: this.faceUp, deck: this.deck, armed: this.armed, launches: this.launches, players };
   }
 
   private freeSeat(): number {

@@ -1,3 +1,4 @@
+import { t } from './i18n.ts';
 import type { Geometry, Point } from './layout.ts';
 
 const DIGITS = 4;
@@ -69,11 +70,15 @@ const SEGMENTS: Record<string, string> = {
 
 export type Reading = 'avg' | 'mode';
 
+/** Rounded to as many of two decimal places as the display has room for. */
 export function averageText(numbers: number[]): string | null {
   if (!numbers.length) {
     return null;
   }
-  return String(Math.round((numbers.reduce((a, b) => a + b, 0) / numbers.length) * 100) / 100);
+  const mean = numbers.reduce((a, b) => a + b, 0) / numbers.length;
+  const whole = String(Math.round(mean)).length;
+  const places = Math.max(0, Math.min(2, DIGITS - whole));
+  return String(Math.round(mean * 10 ** places) / 10 ** places);
 }
 
 /** The most played number; a two-way tie reads as `2-4`, and a wider tie has no mode. */
@@ -108,6 +113,9 @@ export function displayCells(text: string | null): Cell[] {
   }
   if (/^\d+$/.test(text)) {
     cells[cells.length - 1].dot = true;
+  }
+  if (cells.length > DIGITS) {
+    return displayCells(null);
   }
   while (cells.length < DIGITS) {
     cells.unshift({ glyph: ' ', dot: false });
@@ -237,9 +245,9 @@ export function mountCalculator(opts: CalculatorOptions) {
     shelf.style.height = `${tray.height}px`;
     el.classList.toggle('shelved', !spot);
     el.classList.toggle('mode', reading === 'mode');
-    switchEl.setAttribute('aria-label', reading === 'mode' ? 'Showing the mode; switch to average' : 'Showing the average; switch to mode');
-    el.title = spot ? 'Put the calculator back on the shelf' : 'Drag the calculator onto the table';
-    el.setAttribute('aria-label', spot ? 'Put the calculator back on the shelf' : 'Take the calculator from the shelf');
+    switchEl.setAttribute('aria-label', reading === 'mode' ? t('showingMode') : t('showingAvg'));
+    el.title = spot ? t('calcShelve') : t('calcDrag');
+    el.setAttribute('aria-label', spot ? t('calcShelve') : t('calcTake'));
     if (drag?.moved) {
       return;
     }
@@ -257,6 +265,8 @@ export function mountCalculator(opts: CalculatorOptions) {
   }
 
   const switchEl = el.querySelector<HTMLButtonElement>('.calc-switch')!;
+  const longest = Math.max(...Array.from(switchEl.querySelectorAll('[data-reading]'), (s) => [...(s.textContent ?? '')].length));
+  switchEl.style.setProperty('--chars', String(Math.max(4, longest)));
   switchEl.addEventListener('pointerdown', (ev) => ev.stopPropagation());
   switchEl.addEventListener('keydown', (ev) => ev.stopPropagation());
   switchEl.addEventListener('click', () => {

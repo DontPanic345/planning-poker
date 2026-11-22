@@ -64,7 +64,7 @@
           </span>
         </span>
       </button>
-      <button id="clear" type="button" title="Clear cards" aria-label="Clear cards">
+      <button id="clear" type="button" data-i18n-title="clear" data-i18n-label="clear">
         <span class="chip"><span class="chip-icon">🧹</span></span>
       </button>
       <button id="fireworks" type="button">
@@ -104,23 +104,23 @@
       <div id="calc" role="button" tabindex="0">
         <div class="calc-body">
           <div class="calc-window"><svg class="calc-digits" aria-hidden="true"></svg></div>
-          <button class="calc-switch" type="button" title="Average or mode">
-            <span class="calc-knob"></span><span data-reading="avg">AVG</span><span data-reading="mode">MODE</span>
+          <button class="calc-switch" type="button" data-i18n-title="calcSwitch">
+            <span class="calc-knob"></span><span data-reading="avg" data-i18n="avg">AVG</span><span data-reading="mode" data-i18n="mode">MODE</span>
           </button>
         </div>
       </div>
       <canvas id="sky" aria-hidden="true"></canvas>
       <form id="join" class="hidden" autocomplete="off">
         <span class="preview avatar"></span>
-        <input id="name" maxlength="32" placeholder="AB" aria-label="Your initials or an emoji" spellcheck="false" />
+        <input id="name" maxlength="32" placeholder="AB" data-i18n-label="nameInput" spellcheck="false" />
         <span class="picks"></span>
-        <button class="sit" type="submit" aria-label="Sit down">➜</button>
+        <button class="sit" type="submit" data-i18n-label="sit">➜</button>
       </form>
-      <button id="link" type="button" title="Copy room link" aria-label="Copy room link">
+      <button id="link" type="button" data-i18n-title="copyLink" data-i18n-label="copyLink">
         <span class="link-icon">🔗</span><span class="link-code"></span>
       </button>
-      <button id="fullscreen" type="button" class="hidden" title="Fullscreen" aria-label="Toggle fullscreen">⛶</button>
-      <div id="status" title="Reconnecting">📡</div>
+      <button id="fullscreen" type="button" class="hidden" data-i18n-title="fullscreen" data-i18n-label="fullscreen">⛶</button>
+      <div id="status" data-i18n-title="reconnecting">📡</div>
     </div>
     <script type="module" src="/src/main.ts"></script>
   </body>

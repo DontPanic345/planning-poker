@@ -1,5 +1,3 @@
-import { CARDS } from '../../shared/protocol.ts';
-
 export interface Geometry {
   W: number;
   H: number;
@@ -27,8 +25,8 @@ export interface Point {
 
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
 
-export function computeGeometry(W: number, H: number, seats: number): Geometry {
-  const handCardH = Math.min(clamp(H * 0.22, 64, 190), (W - 24) / (1 + (CARDS.length - 1) * 0.62) / 0.7);
+export function computeGeometry(W: number, H: number, seats: number, handSize: number): Geometry {
+  const handCardH = Math.min(clamp(H * 0.22, 64, 190), (W - 24) / (1 + (handSize - 1) * 0.62) / 0.7);
   const handBand = handCardH * 1.25;
   const areaH = H - handBand;
   const avatar = clamp(Math.min(W, areaH) * 0.11, 30, 62);
