@@ -22,6 +22,10 @@ export interface PlayerView {
 export interface RoomView {
   you: string;
   faceUp: boolean;
+  /** The fireworks are loaded and launch when every played card shows the same number. */
+  armed: boolean;
+  /** Increments on every launch. */
+  launches: number;
   players: PlayerView[];
 }
 
@@ -31,7 +35,8 @@ export type ClientMessage =
   | { t: 'play'; card: CardValue }
   | { t: 'unplay' }
   | { t: 'flip' }
-  | { t: 'clear' };
+  | { t: 'clear' }
+  | { t: 'arm' };
 
 export type ServerMessage = { t: 'state'; state: RoomView } | { t: 'error'; reason: string };
 
@@ -40,6 +45,14 @@ export const CLOSE_REPLACED = 4001;
 
 export function isCard(v: unknown): v is CardValue {
   return typeof v === 'string' && (CARDS as readonly string[]).includes(v);
+}
+
+export function cardNumber(v: CardValue | null): number | null {
+  if (v === null) {
+    return null;
+  }
+  const n = Number(v);
+  return Number.isFinite(n) ? n : null;
 }
 
 const segmenter = new Intl.Segmenter(undefined, { granularity: 'grapheme' });

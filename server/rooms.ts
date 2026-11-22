@@ -1,5 +1,6 @@
 import { randomBytes, randomInt } from 'node:crypto';
 import {
+  cardNumber,
   CLOSE_REPLACED,
   ROOM_CODE_ALPHABET,
   type CardValue,
@@ -29,6 +30,8 @@ export interface Player {
 export class Room {
   readonly code: string;
   faceUp = false;
+  armed = false;
+  launches = 0;
   emptySince: number;
   private players = new Map<string, Player>();
   private playCount = 0;
@@ -98,6 +101,11 @@ export class Room {
     this.broadcast();
   }
 
+  arm() {
+    this.armed = !this.armed;
+    this.broadcast();
+  }
+
   /** Removes players whose grace period has lapsed. Returns true when the room has expired. */
   sweep(now: number): boolean {
     let changed = false;
@@ -120,7 +128,7 @@ export class Room {
       connected: p.conn !== null,
       card: p.card && { n: p.card.n, v: this.faceUp || p === viewer ? p.card.v : null },
     }));
-    return { you: viewer.pid, faceUp: this.faceUp, players };
+    return { you: viewer.pid, faceUp: this.faceUp, armed: this.armed, launches: this.launches, players };
   }
 
   private freeSeat(): number {
@@ -130,7 +138,16 @@ export class Room {
     return seat;
   }
 
+  private agreed(): boolean {
+    const values = [...this.players.values()].flatMap((p) => (p.card ? [p.card.v] : []));
+    return values.length >= 2 && cardNumber(values[0]) !== null && values.every((v) => v === values[0]);
+  }
+
   private broadcast() {
+    if (this.armed && this.faceUp && this.agreed()) {
+      this.armed = false;
+      this.launches++;
+    }
     for (const p of this.players.values()) {
       p.conn?.send({ t: 'state', state: this.viewFor(p) });
     }

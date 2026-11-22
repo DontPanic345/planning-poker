@@ -151,6 +151,9 @@ function attach(ws: WebSocket & { alive?: boolean }, code: string) {
       case 'clear':
         room.clear();
         break;
+      case 'arm':
+        room.arm();
+        break;
     }
   });
 

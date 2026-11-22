@@ -107,3 +107,53 @@ test('empty rooms are removed after the TTL', () => {
   lobby.sweep(DISCONNECT_GRACE_MS + EMPTY_ROOM_TTL_MS);
   assert.ok(!lobby.has('ROOM'));
 });
+
+test('armed fireworks launch once every played card shows the same number, then disarm', () => {
+  const room = new Room('ROOM', 0);
+  const conn = fakeConn();
+  const a = room.join(SECRET_A, 'AA', conn);
+  const b = room.join(SECRET_B, 'BB', fakeConn());
+  room.arm();
+  assert.equal(conn.last!.armed, true);
+
+  room.play(a, '4');
+  room.play(b, '4');
+  assert.equal(conn.last!.launches, 0, 'face-down cards do not launch');
+
+  room.flip();
+  assert.equal(conn.last!.launches, 1);
+  assert.equal(conn.last!.armed, false);
+
+  room.play(b, '2');
+  room.play(b, '4');
+  assert.equal(conn.last!.launches, 1, 'disarmed fireworks stay put');
+});
+
+test('fireworks need two matching numbers', () => {
+  const room = new Room('ROOM', 0);
+  const conn = fakeConn();
+  const a = room.join(SECRET_A, 'AA', conn);
+  const b = room.join(SECRET_B, 'BB', fakeConn());
+  room.flip();
+  room.arm();
+
+  room.play(a, '8');
+  assert.equal(conn.last!.launches, 0, 'a lone card');
+  room.play(b, '2');
+  assert.equal(conn.last!.launches, 0, 'mixed cards');
+  room.play(a, '?');
+  room.play(b, '?');
+  assert.equal(conn.last!.launches, 0, 'matching non-numbers');
+  room.play(a, '2');
+  room.play(b, '2');
+  assert.equal(conn.last!.launches, 1);
+});
+
+test('arming toggles', () => {
+  const room = new Room('ROOM', 0);
+  const conn = fakeConn();
+  room.join(SECRET_A, 'AA', conn);
+  room.arm();
+  room.arm();
+  assert.equal(conn.last!.armed, false);
+});

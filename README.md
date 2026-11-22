@@ -21,6 +21,8 @@ npm start            # builds the client and serves on http://localhost:3000
 
 - Rooms live in memory only. A dropped player keeps their seat and card for 60 seconds; a room with no players is removed after 10 minutes.
 - While the coin is face-down the server withholds card values from everyone except the card's owner.
+- The calculator is per player: drag it from the shelf onto the table to see the average (or, with its switch on MODE, the most played number) of the face-up numbered cards. Its spot and switch are remembered in `localStorage`.
+- The fireworks box is shared. Once loaded, it launches for everyone when the coin is face-up and every played card shows the same number, then needs loading again.
 - Initials/emoji are remembered in `localStorage`; the per-room player secret is in `sessionStorage`, so a refresh rejoins the same seat.
 
 ## Test

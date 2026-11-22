@@ -15,7 +15,7 @@ Existing planning poker sites are complicated, ad-ridden, buggy, or missing basi
 - Popups or modals
 - Cookie-consent banners
 - Excessive menus/settings/"modes" (e.g. a dedicated spectator mode)
-- Automatic average calculation, or any UI that decides when the round is "done"
+- An average forced on everyone, or any UI that decides when the round is "done"
 
 The team is already on a call, with the Product Owner (PO) screen-sharing the current issue from their tracker. All the app needs to do is give players an independent, private way to pick a card and reveal it together — like a physical card game, digitized. Estimating the average, calling the round, deciding who plays — that's the PO's job in the room, not the app's.
 
@@ -60,6 +60,23 @@ A toggle, face-up or face-down, that controls how *all* played cards are display
 
 Returns all played cards to their owners' hands. Table is emptied.
 
+### The Calculator
+
+A retro calculator with a red 7-segment display, parked on a shelf at the edge of the window.
+
+- Each player drags it onto the table if they want it, and back to the shelf when they don't. Clicking it does the same. Where it sits is remembered per browser.
+- On the table it shows the average of the face-up numbered cards; ? and ☕ don't count. While the coin is face-down it shows dashes.
+- A slide switch labelled AVG / MODE picks between the average and the most played number. A two-way tie shows both (`2-4`); a wider tie shows dashes. The switch position is remembered per browser.
+- On the shelf its display is dark.
+
+### The Fireworks
+
+A box of fireworks on the table beside the coin, shared by the whole room.
+
+- Clicking the box loads the rockets (armed); clicking again unloads them.
+- When armed, the moment the coin is face-up and every played card shows the same number (two or more cards), the fuse lights and a fireworks display plays on every screen.
+- A launch empties the box; it has to be loaded again for the next one.
+
 ### Cards
 
 - Doubling 1, 2, 4, 8, plus ? and ☕.
@@ -85,4 +102,4 @@ hosting local with ngrok
 ## Out of scope
 
 - Accounts, auth, persistence across server restarts.
-- Timers, spectator modes, average calculation, "round complete" detection.
+- Timers, spectator modes, "round complete" detection.

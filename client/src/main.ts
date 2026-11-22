@@ -1,5 +1,6 @@
 import './style.css';
 import {
+  cardNumber,
   CARDS,
   CLOSE_REPLACED,
   cleanName,
@@ -10,6 +11,8 @@ import {
   type RoomView,
   type ServerMessage,
 } from '../../shared/protocol.ts';
+import { mountCalculator } from './calculator.ts';
+import { mountSky } from './fireworks.ts';
 import { computeGeometry, handSlots, seatPoint, spotPoint, type Geometry, type Point } from './layout.ts';
 
 const SEAT_COLORS = ['#e85d75', '#f29e4c', '#e9c46a', '#8ac926', '#2ec4b6', '#3a86ff', '#8e6cf0', '#d16ba5', '#ff7f50', '#4dd0e1'];
@@ -75,6 +78,7 @@ let retry = 0;
 let g: Geometry = computeGeometry(innerWidth, innerHeight, DEFAULT_SEATS);
 let coinTurns: number | null = null;
 let lastFaceUp: boolean | null = null;
+let lastLaunches: number | null = null;
 
 // ---------- network ----------
 
@@ -213,10 +217,16 @@ seatsEl.addEventListener('keydown', (ev) => {
   }
 });
 
-// ---------- coin & clear ----------
+// ---------- coin, clear & fireworks ----------
 
 const coinEl = $<HTMLButtonElement>('#coin');
 const clearEl = $<HTMLButtonElement>('#clear');
+const fireworksEl = $<HTMLButtonElement>('#fireworks');
+const sky = mountSky($<HTMLCanvasElement>('#sky'));
+const FUSE_MS = 450;
+let launchTimer = 0;
+
+const fireworksPoint = (): Point => ({ x: g.cx - g.coin * 1.1, y: g.cy + g.coin * 0.25 });
 
 function renderCenter() {
   const faceUp = state?.faceUp ?? false;
@@ -242,10 +252,34 @@ function renderCenter() {
   coinEl.disabled = !state;
 
   clearEl.disabled = !state?.players.some((p) => p.card);
+
+  fireworksEl.style.setProperty('--coin', `${g.coin * 0.85}px`);
+  fireworksEl.style.transform = translate(fireworksPoint());
+  fireworksEl.classList.toggle('armed', !!state?.armed);
+  const fwLabel = state?.armed ? 'Unload the fireworks' : 'Load the fireworks';
+  fireworksEl.title = fwLabel;
+  fireworksEl.setAttribute('aria-label', fwLabel);
+  fireworksEl.disabled = !state;
+
+  if (state && lastLaunches !== null && state.launches > lastLaunches) {
+    launch();
+  }
+  lastLaunches = state ? state.launches : lastLaunches;
+}
+
+function launch() {
+  fireworksEl.classList.remove('launch');
+  void fireworksEl.offsetWidth;
+  fireworksEl.classList.add('launch');
+  clearTimeout(launchTimer);
+  launchTimer = window.setTimeout(() => fireworksEl.classList.remove('launch'), 1400);
+  const rect = fireworksEl.getBoundingClientRect();
+  sky.launch({ x: rect.left + rect.width / 2, y: rect.top }, [...SEAT_COLORS, '#ffd166', '#ffffff'], FUSE_MS);
 }
 
 coinEl.addEventListener('click', () => send({ t: 'flip' }));
 clearEl.addEventListener('click', () => send({ t: 'clear' }));
+fireworksEl.addEventListener('click', () => send({ t: 'arm' }));
 
 // ---------- cards ----------
 
@@ -550,6 +584,34 @@ function renderStatus() {
   else statusTimer = window.setTimeout(() => statusEl.classList.add('show'), 1200);
 }
 
+// ---------- calculator ----------
+
+const calculator = mountCalculator({
+  el: $('#calc'),
+  shelf: $('#shelf'),
+  load: (key) => store.get(local, key),
+  save: (key, value) => {
+    if (value === null) {
+      try {
+        local?.removeItem(key);
+      } catch {}
+    } else {
+      store.set(local, key, value);
+    }
+  },
+  shelfTop: () => (fullscreenEl.classList.contains('hidden') ? 12 : 48),
+});
+
+function faceUpNumbers(): number[] | null {
+  if (!state?.faceUp) {
+    return null;
+  }
+  return state.players.flatMap((p) => {
+    const n = cardNumber(p.card?.v ?? null);
+    return n === null ? [] : [n];
+  });
+}
+
 // ---------- render ----------
 
 let rendered = false;
@@ -560,6 +622,7 @@ function render() {
   renderCenter();
   renderCards(rendered);
   renderJoin();
+  calculator.render(g, faceUpNumbers());
   rendered = true;
 }
 
